@@ -1,0 +1,1 @@
+# Resonance - a free, cross platform music client
