@@ -6,3 +6,4 @@ export * from './models/Track';
 
 export * from './provider/MusicProvider';
 export * from './provider/ProviderCapabilities';
+export * from './provider/ProviderRegistry';

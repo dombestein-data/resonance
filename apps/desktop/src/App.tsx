@@ -1,12 +1,11 @@
 import { useEffect, useState } from 'react';
 import type { PlaybackState, Track } from '@resonance/core';
-import { MockProvider } from '@resonance/provider-mock';
-
-const provider = new MockProvider();
+import { useMusicProvider } from './providers/MusicProviderContext';
 
 function App() {
   const [tracks, setTracks] = useState<Track[]>([]);
   const [playback, setPlayback] = useState<PlaybackState | null>(null);
+  const { activeProvider: provider } = useMusicProvider();  
 
   async function refreshPlayback() {
     setPlayback(await provider.getPlaybackState());
