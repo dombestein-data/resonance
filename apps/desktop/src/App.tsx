@@ -6,6 +6,7 @@ import {
   type AppDestination,
 } from './components/AppShell';
 import { PlayerBar } from './components/PlayerBar';
+import { PlaybackEnvironmentProbe } from './components/PlaybackEnvironmentProbe';
 
 function App() {
   const [tracks, setTracks] = useState<Track[]>([]);
@@ -100,7 +101,7 @@ function App() {
         return (
           <>
             <h1>Settings</h1>
-            <p>Settings are not available yet.</p>
+            <PlaybackEnvironmentProbe />
           </>
         );
 

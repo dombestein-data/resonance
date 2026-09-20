@@ -323,3 +323,134 @@ input:focus-visible {
   border: 0;
   clip-path: inset(50%);
 }
+
+.playback-environment-probe {
+  width: min(100%, 52rem);
+}
+
+.playback-probe-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 2rem;
+
+  margin-bottom: 1.5rem;
+}
+
+.playback-probe-header h2 {
+  margin: 0 0 0.5rem;
+}
+
+.playback-probe-header p {
+  margin: 0;
+  color: var(--color-text-muted);
+}
+
+.playback-probe-header button {
+  flex: 0 0 auto;
+  padding: 0.7rem 1rem;
+
+  color: var(--color-background);
+  background: var(--color-text);
+  border: 0;
+  border-radius: 0.5rem;
+  cursor: pointer;
+}
+
+.playback-probe-header button:hover:not(:disabled) {
+  background: var(--color-accent);
+}
+
+.playback-probe-header button:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+
+.playback-probe-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+
+  margin: 0 0 2rem;
+}
+
+.playback-probe-summary > div {
+  min-width: 0;
+  padding: 1rem;
+
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+}
+
+.playback-probe-summary dt {
+  margin-bottom: 0.35rem;
+
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+}
+
+.playback-probe-summary dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.playback-probe-key-systems ul {
+  display: grid;
+  gap: 0.75rem;
+
+  padding: 0;
+  list-style: none;
+}
+
+.playback-probe-result {
+  display: grid;
+  gap: 0.4rem;
+
+  padding: 1rem;
+
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-left-width: 0.25rem;
+  border-radius: 0.5rem;
+}
+
+.playback-probe-result--supported {
+  border-left-color: #4ade80;
+}
+
+.playback-probe-result--unsupported {
+  border-left-color: var(--color-text-muted);
+}
+
+.playback-probe-result-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.playback-probe-result-heading span,
+.playback-probe-result small {
+  color: var(--color-text-muted);
+}
+
+.playback-probe-result code,
+.playback-probe-result small {
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 50rem) {
+  .playback-probe-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .playback-probe-header button {
+    align-self: flex-start;
+  }
+
+  .playback-probe-summary {
+    grid-template-columns: 1fr;
+  }
+}
