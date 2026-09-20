@@ -46,7 +46,7 @@ export interface ArtistSummary {
     providerArtistId: string;
 
     /**
-     * Human-readabøe name of the artist.
+     * Human-readable name of the artist.
      */
     name: string;
 }
