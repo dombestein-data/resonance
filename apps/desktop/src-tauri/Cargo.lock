@@ -2829,6 +2829,7 @@ dependencies = [
  "tauri",
  "tauri-build",
  "tauri-plugin-opener",
+ "webkit2gtk",
 ]
 
 [[package]]
