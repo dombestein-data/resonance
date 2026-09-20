@@ -24,13 +24,13 @@ function App() {
     initialize();
   }, []);
 
-  async function playTrack(trackId: string) {
-    await provider.playTrack(trackId);
+  async function playTrack(providerTrackId: string) {
+    await provider.playTrack(providerTrackId);
     await refreshPlayback();
   }
 
   async function togglePlayback() {
-    if (playback?.playing) {
+    if (playback?.status === 'playing') {
       await provider.pause();
     } else {
       await provider.resume();
@@ -51,7 +51,7 @@ function App() {
           {" - "}
           {track.artists.map((artist) => artist.name).join(", ")}
 
-          <button onClick={() => playTrack(track.id)}>
+          <button onClick={() => playTrack(track.providerTrackId)}>
             Play
           </button>
         </div>
@@ -67,7 +67,7 @@ function App() {
           </p>
 
           <button onClick={togglePlayback}>
-            {playback.playing ? "Pause" : "Resume"}
+            {playback.status === 'playing' ? "Pause" : "Resume"}
           </button>
         </>
       ) : (

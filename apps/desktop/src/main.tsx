@@ -9,15 +9,13 @@ import { MusicProviderProvider } from './providers/MusicProviderProvider';
 
 const registry = new ProviderRegistry();
 
-/**
- * Concrete providers are registered at the application boundary so the
- * rest of the application only depends on the MusicProvider contract.
- */
+// Concrete providers are registered at the application boundary so the
+// rest of the application only depends on the MusicProvider contract.
 registry.register(new MockProvider());
 
 const activeProvider = registry.get('mock');
 if (!activeProvider) {
-  throw new Error ('No active music provider available');
+  throw new Error('No active music provider available');
 }
 
 createRoot(document.getElementById('root')!).render(

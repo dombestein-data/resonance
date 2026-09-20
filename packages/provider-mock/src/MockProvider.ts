@@ -170,11 +170,11 @@ export class MockProvider implements MusicProvider {
         this.volume = volume;
     }
 
-    async setShuffle(enabled: boolean): Promise<void> {
+    async setShuffle(_enabled: boolean): Promise<void> {
         // Shuffle is not yet implemented by the mock provider.
     }
 
-    async setRepeatMode(mode: RepeatMode): Promise<void> {
+    async setRepeatMode(_mode: RepeatMode): Promise<void> {
         // Repeat is not yet implemented by the mock provider.
     }
 
