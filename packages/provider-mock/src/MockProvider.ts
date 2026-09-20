@@ -24,7 +24,7 @@ export class MockProvider implements MusicProvider {
             shuffle: false,
             repeat: false,
         },
-        
+
         search: true,
 
         library: {
@@ -141,7 +141,7 @@ export class MockProvider implements MusicProvider {
         if (this.currentTrackIndex === null) {
             throw new Error('[mock-provider]: No track loaded');
         }
-        
+
         this.currentTrackIndex =
             (this.currentTrackIndex + 1) % mockTracks.length;
 
@@ -152,7 +152,7 @@ export class MockProvider implements MusicProvider {
         if (this.currentTrackIndex === null) {
             throw new Error('[mock-provider]: No track loaded');
         }
-        
+
         this.currentTrackIndex =
             (this.currentTrackIndex - 1 + mockTracks.length) %
             mockTracks.length;
@@ -180,15 +180,21 @@ export class MockProvider implements MusicProvider {
 
     async search(query: string): Promise<SearchResults> {
         const normalizedQuery = query.toLowerCase().trim();
+        const queryTerms = normalizedQuery
+            ? normalizedQuery.split(/\s+/)
+            : [];
 
         const tracks = mockTracks.filter((track) => {
-            const titleMatches = track.title.toLowerCase().includes(normalizedQuery);
-            const artistMatches = track.artists.some((artist) => 
-                artist.name.toLowerCase().includes(normalizedQuery),
-            );
-            const albumMatches = track.album?.title.toLowerCase().includes(normalizedQuery);
+            const searchableText = [
+                track.title,
+                track.album?.title,
+                ...track.artists.map((artist) => artist.name),
+            ]
+                .filter(Boolean)
+                .join(' ')
+                .toLowerCase();
 
-            return titleMatches || artistMatches || albumMatches;
+            return queryTerms.every((term) => searchableText.includes(term));
         });
 
         return { tracks };

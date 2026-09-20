@@ -1,6 +1,8 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
+import './App.css';
+
 import { ProviderRegistry } from '@resonance/core';
 import { MockProvider } from '@resonance/provider-mock';
 
