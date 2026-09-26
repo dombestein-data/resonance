@@ -14,16 +14,19 @@ import type { Artwork } from "./Artwork";
 export interface Track {
     /**
      * Resonance-wide identifier for this track.
-     * 
-     * Combines the originating provider identifier and its provider-local
-     * track ID to create an identifier that is unique across providers.
+     *
+     * uses the form:
+     * `provider:resource-type:provider-local-id`.
+     *
+     * Including the resource type prevents identifiers belonging to different
+     * resource categories from colliding within the same provider.
      * 
      * This identifier represents the track as exposed by a specific provider.
      * The same real-world recording exposed by different providers therefore has
      * a distinct Resonance ID for each provider.
      * 
-     * @example 'apple-music:269573405'
-     * @example 'spotify:4cgjA7B4fJBHyB9Ya2bu0t'
+     * @example 'apple-music:track:269573405'
+     * @example 'spotify:track:4cgjA7B4fJBHyB9Ya2bu0t'
      */
     id: string;
 

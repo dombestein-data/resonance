@@ -55,15 +55,15 @@ Canonical models should represent concepts that are meaningful to Resonance rath
 
 ## Resource Identity
 Provider-backed resources have a Resonance-wide `id` in addition to information identifying their originating provider and their provider-local resource ID.
-The current convention for Resonance-wide IDs is `provider:resource`.
+The current convention for Resonance-wide IDs is `provider:resource-type:provider-local-id`.
 
 Let's take a track as an example. If we were to look up Michael Jackson's "Human Nature" on Spotify, we would get the ID `4cgjA7B4fJBHyB9Ya2bu0t`. If we were to look up the same track on Apple Music, we would get the ID `269573405`. 
 ```mermaid
 flowchart TD
     H["Human Nature"]
 
-    S["Spotify-backed Track<br/>id: spotify:4cgjA7B4fJBH..."]
-    A["Apple Music-backed Track<br/>id: apple-music:269573405"]
+    S["Spotify-backed Track<br/>id: spotify:track:4cgjA7B4fJBH..."]
+    A["Apple Music-backed Track<br/>id: apple-music:track:269573405"]
 
     H -.->|"same real-world recording"| S
     H -.->|"same real-world recording"| A
@@ -71,14 +71,14 @@ flowchart TD
 
 Resonance currently treats these as distinct provider-backed resources. Determining that resources from different providers represent the same real-world recording is a separate cross-provider entity-resolution problem and is outside the scope of the current identity model. Since Resonance treats these as distinct provider-backed resources, they are also given separate Resonance-wide IDs:
 
-`spotify:4cgjA7B4fJBHyB9Ya2bu0t` and `apple-music:269573405`.
+`spotify:track:4cgjA7B4fJBHyB9Ya2bu0t` and `apple-music:track:269573405`.
 
 
 Each provider-backed track therefore stores three pieces of identity information: its Resonance-wide `id`, the `provider` responsible for the resource, and the `providerTrackId` understood by that provider.
 ```ts
 {  
     // Resonance-wide identity for this provider-backed resource.
-    id: "spotify:4cgjA7B4fJBHyB9Ya2bu0t"  
+    id: "spotify:track:4cgjA7B4fJBHyB9Ya2bu0t"
     // Identifies the provider responsible for this resource.
     provider: 'spotify'
     // Track identifier understood by the originating provider.
@@ -172,6 +172,33 @@ if (provider.capabilities.playback.seek) {
 ```
 
 The complete capability definitions are available in `packages/core/src/provider/ProviderCapabilities.ts`. 
+
+### Provider playback-state propagation
+Providers expose playback state in two ways:
+
+1. `getPlaybackState()` returns a snapshot of the provider's currently known state.
+2. `subscribeToPlaybackState()` reports subsequent changes.
+
+Subscriptions are necessary because playback may change outside Resonance.
+For example Spotify Connect may transfer playback, change tracks, or pause
+the player in response to another device.
+
+Provider-specific events must be translated into the canonical `PlaybackState` model
+before they leave the provider implementation.
+
+```mermaid
+flowchart LR
+    S["External music service"]
+    C["Provider-specific client"]
+    P["MusicProvider implementation"]
+    M["Canonical PlaybackState"]
+    U["Resonance UI"]
+
+    S-->|"service event"|C
+    C-->|"provider-specific state"|P
+    P-->|"translate"|M
+    M-->|"subscription notification"|U
+```
 
 ## Application Composition
 Concrete provider implementations are instantiated and registered at the application boundary. In the desktop application, this currently happens in `main.tsx`, which acts as the application's composition root.

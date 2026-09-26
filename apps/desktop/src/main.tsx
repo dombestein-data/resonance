@@ -5,6 +5,7 @@ import './App.css';
 
 import { ProviderRegistry } from '@resonance/core';
 import { MockProvider } from '@resonance/provider-mock';
+import { SpotifyProvider } from '@resonance/provider-spotify';
 
 import App from "./App";
 import { MusicProviderProvider } from './providers/MusicProviderProvider';
@@ -15,14 +16,22 @@ const registry = new ProviderRegistry();
 // rest of the application only depends on the MusicProvider contract.
 registry.register(new MockProvider());
 
-const activeProvider = registry.get('mock');
-if (!activeProvider) {
-  throw new Error('No active music provider available');
+const spotifyClientId = import.meta.env.VITE_SPOTIFY_CLIENT_ID?.trim() ?? '';
+
+if (spotifyClientId) {
+  registry.register(
+    new SpotifyProvider(spotifyClientId),
+  );
 }
+
+const providers = registry.getAll();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <MusicProviderProvider provider={activeProvider}>
+    <MusicProviderProvider
+      providers={providers}
+      initialProviderId="mock"
+    >
       <App />
     </MusicProviderProvider>
   </StrictMode>

@@ -25,6 +25,17 @@ export type RepeatMode =
     | 'track';
 
 /**
+ * Receives the latest playback state emitted by a music provider.
+ *
+ * A `null` state means that playback state is not currently available.
+ * Providers should emit an idle state when they are available, but
+ * have no track loaded.
+ */
+export type PlaybackStateListener = (
+    state: PlaybackState | null,
+) => void;
+
+/**
  * Defines the common contract implemented by all Resonance music providers.
  * 
  * Provider implementations are responsible for translating service-specific APIs,
@@ -89,6 +100,25 @@ export interface MusicProvider {
      * @returns The current playback state, or `null` if no playback state is available.
      */
     getPlaybackState(): Promise<PlaybackState | null>;
+
+    /**
+     * Subscribes to provider-originated playback-state changes.
+     *
+     * The listener is notified after the provider's known state changes,
+     * including changes initiated outside Resonance.
+     *
+     * The listener is not required to receive an immediate initial value.
+     * Call {@link getPlaybackState} when an initial snapshot is required.
+     *
+     * Listener delivery is synchronous with respect to the provider receiving or
+     * applying the state update. Consumers should avoid performing expensive work
+     * directly inside the listener.
+     *
+     * @param listener Callback invoked whenever the known playback state changes.
+     * @returns A cleanup function that removes this subscription. Calling the
+     * returned function more than once must be safe.
+     */
+    subscribeToPlaybackState(listener: PlaybackStateListener): () => void;
 
     /**
      * Starts playback of a specific track.

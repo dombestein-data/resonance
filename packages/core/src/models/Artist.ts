@@ -13,16 +13,19 @@
 export interface ArtistSummary {
     /**
      * Resonance-wide identifier for this artist.
-     * 
-     * Combines the originating provider identifier and its provider-local
-     * artist ID to create an identifier that is unique across providers.
+     *
+     * Uses the form:
+     * `provider:resource-type:provider-local-id`
+     *
+     * Including the resource type prevents identifiers belonging to different
+     * resource categories from colliding within the same provider.
      * 
      * This identifier represents the artist as exposed by a specific provider.
      * The same real-world artist exposed by different providers therefore has
      * a distinct Resonance ID for each provider.
      * 
-     * @example 'apple-music:32940'
-     * @example 'spotify:3fMbdgg4jU18AjLCKBhRSm'
+     * @example 'apple-music:artist:32940'
+     * @example 'spotify:artist:3fMbdgg4jU18AjLCKBhRSm'
      */
     id: string;
 

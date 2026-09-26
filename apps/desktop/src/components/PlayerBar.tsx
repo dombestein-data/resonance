@@ -13,6 +13,11 @@ import {
     IconVolume,
 } from '@tabler/icons-react';
 
+import {
+    useEffect,
+    useState
+} from 'react';
+
 interface PlayerBarProps {
     playback: PlaybackState | null;
     capabilities: PlaybackCapabilities;
@@ -49,8 +54,58 @@ export function PlayerBar({
     const hasTrack = Boolean(track);
     const isPlaying = playback?.status === 'playing';
     const durationMs = track?.durationMs ?? 0;
-    const positionMs = Math.min(
+
+    const authoritativePositionMs = Math.min(
         Math.max(playback?.positionMs ?? 0, 0),
+        durationMs,
+    );
+
+    const [displayPositionMs, setDisplayPositionMs] = useState(
+        authoritativePositionMs,
+    );
+
+    /**
+     * Synchronize the displayed position whenever the provider supplies a new
+     * authoritative playback snapshot.
+     */
+    useEffect(() => {
+        setDisplayPositionMs(authoritativePositionMs);
+    }, [
+        track?.id,
+        authoritativePositionMs,
+        playback?.status,
+    ]);
+
+    /**
+     * Provider playback events represent snapshots rather than a continuously
+     * ticking clock. Interpolate the visible position locally while playing,
+     * using elapsed wall-clock time to avoid accumulating interval drift.
+     */
+    useEffect(() => {
+        if (!track || playback?.status !== 'playing' || durationMs <= 0) {
+            return;
+        }
+
+        let previousTick = performance.now();
+
+        const intervalId = window.setInterval(() => {
+            const currentTick = performance.now();
+            const elapsedMs = currentTick - previousTick;
+
+            previousTick = currentTick;
+
+            setDisplayPositionMs((currentPositionMs) =>
+                Math.min(currentPositionMs + elapsedMs, durationMs),
+            );
+        }, 250);
+
+        return () => {
+            window.clearInterval(intervalId);
+        };
+    }, [track?.id, playback?.status, durationMs]);
+
+    const positionMs = Math.min(
+        Math.max(displayPositionMs, 0),
         durationMs,
     );
 
@@ -133,9 +188,12 @@ export function PlayerBar({
                     step="1000"
                     value={positionMs}
                     disabled={!hasTrack || !capabilities.seek}
-                    onChange={(event) =>
-                        void onSeek(Number(event.currentTarget.value))
-                    }
+                    onChange={(event) => {
+                        const nextPositionMs = Number(event.currentTarget.value);
+
+                        setDisplayPositionMs(nextPositionMs);
+                        void onSeek(nextPositionMs);
+                    }}
                 />
 
                 <span className="playback-time" aria-hidden="true">

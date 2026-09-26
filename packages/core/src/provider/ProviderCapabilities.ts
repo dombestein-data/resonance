@@ -7,6 +7,12 @@
  * guarantee that an operation is currently available for a particular user, resource,
  * authentication state, or playback session.
  * 
+ * A capability set to `true` means that the corresponding operation has a
+ * usable implementation. It does not guarantee that the operation is available
+ * for every user, resource, authentication state, or playback session.
+ *
+ * Planned functionality must remain `false` until its implementation is usable.
+ *
  * Consumers should use capabilities to determine which functionality is
  * available instead of checking for specific provider IDs.
  * 

@@ -9,6 +9,15 @@ from the Spotify mobile application, produced audible protected audio, received
 live track metadata, and controlled playback with working pause and resume
 actions.
 
+On 27 September 2026, the proven Spotify path was integrated into Resonance's
+provider architecture. Spotify now implements the shared `MusicProvider`
+contract, publishes canonical Resonance playback models, can be selected as the
+active application provider, and drives the real bottom PlayerBar. Pause,
+resume, previous, next, seek, and volume controls were verified through the
+application interface. The PlayerBar also interpolates elapsed playback time
+between provider snapshots, allowing the progress control and elapsed-time
+label to advance continuously while a track is playing.
+
 This is the first confirmed provider playback in Resonance and the first time
 the application produced music from a production streaming service.
 
@@ -55,7 +64,7 @@ http://127.0.0.1:43821/callback
 
 ## Implemented Components
 
-The proof of concept is divided into four layers.
+The implementation is divided into the following layers.
 
 ### Tauri Loopback Callback
 
@@ -135,10 +144,75 @@ The Settings probe provides explicit controls to:
 - display the current track and artists; and
 - pause or resume playback.
 
-The probe remains intentionally separate from Resonance's application-level
-`MusicProvider` wiring. Its purpose is to prove and diagnose the provider
-technology before moving the working behavior behind the common provider
-contract.
+The probe was intentionally created before application-level provider wiring.
+Its purpose was to prove and diagnose the provider technology in isolation.
+It remains useful as a diagnostic surface, but it is no longer the only path
+through which Spotify is exercised.
+
+### Spotify MusicProvider Adapter
+
+`SpotifyProvider` now implements Resonance's provider-neutral `MusicProvider`
+contract. It composes `SpotifyAuthClient` and `SpotifyPlaybackClient`, keeping
+OAuth and Web Playback SDK details behind the provider boundary.
+
+The adapter currently:
+
+- authenticates the user and initializes the SDK player;
+- translates Spotify SDK state into Resonance's canonical `PlaybackState`;
+- maps Spotify tracks, artists, albums, artwork, duration, position, and
+  playability into canonical Core models;
+- assigns collision-resistant Resonance IDs using the convention
+  `provider:resource-type:provider-local-id`;
+- publishes provider-originated state changes through
+  `subscribeToPlaybackState()`;
+- delegates resume, pause, seek, next, previous, and volume operations to the
+  Spotify playback client; and
+- advertises only the capabilities that are currently implemented.
+
+Catalogue search and `playTrack()` remain intentionally disabled. The current
+vertical slice controls an existing Spotify playback context rather than
+starting an arbitrary catalogue item.
+
+### Application Provider Selection
+
+Concrete providers are created at the desktop composition boundary and exposed
+to React through `MusicProviderProvider`. The context tracks connection status
+separately from active-provider selection. The Settings interface can connect,
+activate, and disconnect Spotify while retaining the mock provider as an
+always-available fallback.
+
+Application components consume the active provider through the shared Core
+contract. They do not import Spotify's concrete implementation or branch on the
+Spotify provider ID to perform playback operations.
+
+### Application PlayerBar
+
+The normal Resonance PlayerBar is now driven by canonical state from the active
+provider. The following operations were tested successfully with Spotify:
+
+- play and pause;
+- previous and next track;
+- seeking within the current track; and
+- volume adjustment.
+
+The PlayerBar displays canonical artwork, title, artists, elapsed time, and
+duration. Unsupported controls such as shuffle and repeat remain disabled based
+on provider capability declarations.
+
+Spotify's `player_state_changed` event supplies authoritative snapshots, but it
+does not act as a once-per-second playback clock. An initial implementation
+therefore left the progress slider stationary until another SDK event occurred,
+most visibly when playback was paused. The PlayerBar now treats the provider
+position as an authoritative synchronization point and locally interpolates the
+visible position while playback is active. It uses elapsed monotonic time rather
+than adding a fixed amount per interval, clamps progress to the track duration,
+stops interpolation while paused, and resynchronizes whenever the provider emits
+a new snapshot. Seeking also updates the displayed position immediately before
+the provider confirms later state.
+
+This interpolation is intentionally a presentation concern. The provider does
+not manufacture artificial playback events every second, and its snapshots
+remain the source of truth.
 
 ## End-to-End Flow
 
@@ -334,8 +408,16 @@ On the tested macOS environment, Resonance can:
 - expose that device to the Spotify mobile application;
 - receive playback transferred from another Spotify client;
 - produce audible Spotify audio;
-- receive live track and playback-state metadata; and
-- pause and resume playback from Resonance.
+- receive live track and playback-state metadata;
+- translate Spotify state into Resonance's canonical provider-neutral models;
+- operate Spotify through the shared `MusicProvider` contract;
+- drive the normal Resonance PlayerBar from Spotify state;
+- pause and resume playback from Resonance;
+- move to the previous or next track;
+- seek within the current track;
+- adjust playback volume; and
+- present continuously advancing elapsed time between authoritative SDK state
+  snapshots.
 
 ## What the Experiment Does Not Yet Prove
 
@@ -348,8 +430,7 @@ The result does not yet establish:
 - secure persistence of refresh tokens;
 - automatic session restoration after restarting Resonance;
 - catalog search or starting a selected track from Resonance;
-- full PlayerBar controls such as seek, volume, next, previous, shuffle, and
-  repeat;
+- shuffle and repeat controls;
 - long-running recovery after network loss or a device becoming unavailable;
   or
 - compliance decisions for distribution or commercial use.
@@ -376,50 +457,45 @@ Before the provider is considered production-ready, Resonance needs:
 - review of Spotify's current developer terms and playback policies before
   distribution.
 
-## Transition from Probe to Provider
+## Completed Transition from Probe to Provider
 
-The next implementation step is to move the proven behavior behind
-`SpotifyProvider implements MusicProvider`.
+The initial research report proposed moving the proven probe behavior behind
+`SpotifyProvider implements MusicProvider`. That vertical slice is now
+complete.
 
 ```mermaid
 flowchart TD
-    Probe[Working Spotify settings probe]
+    Probe[Spotify diagnostic probe]
     Auth[SpotifyAuthClient]
     Playback[SpotifyPlaybackClient]
     Provider[SpotifyProvider implements MusicProvider]
-    Registry[ProviderRegistry]
-    Context[MusicProviderContext]
+    Composition[Desktop composition root]
+    Context[MusicProviderProvider and context]
     PlayerBar[Resonance PlayerBar]
-    Search[Spotify catalog search]
-    Storage[Token refresh and secure storage]
+    Models[Canonical Core models]
+    Search[Future catalog search and playTrack]
+    Storage[Future token refresh and secure storage]
 
-    Probe -->|Proves behavior| Auth
-    Probe -->|Proves behavior| Playback
+    Probe --> Auth
+    Probe --> Playback
     Auth --> Provider
     Playback --> Provider
-    Provider --> Registry
-    Registry --> Context
+    Provider --> Models
+    Provider --> Composition
+    Composition --> Context
     Context --> PlayerBar
     Provider --> Search
     Provider --> Storage
 ```
 
-The intended first vertical slice is:
+The completed vertical slice includes provider construction at the composition
+root, explicit connect/activate/disconnect behavior in Settings, canonical
+playback-state propagation, capability-aware controls, and full PlayerBar
+operation for the controls presently implemented by Spotify.
 
-1. implement `SpotifyProvider` using the existing authentication and playback
-   clients;
-2. map Spotify SDK state into Resonance's canonical `PlaybackState` and `Track`
-   models;
-3. delegate pause, resume, seek, next, previous, and volume operations to the
-   Spotify playback client;
-4. register Spotify at the desktop application's composition boundary;
-5. select Spotify as the active provider through an explicit temporary
-   development mechanism; and
-6. drive the existing bottom PlayerBar from the Spotify provider.
-
-After that vertical slice, secure token persistence, refresh, provider
-selection, search, and library integration can be developed without changing
-the confirmed protected-playback foundation.
+The next provider milestone can build catalogue search and `playTrack()` on top
+of this foundation. Secure token persistence and refresh remain necessary
+lifecycle work before the integration is production-ready.
 
 ## Conclusion
 
@@ -429,8 +505,11 @@ The experiment answered its primary research question positively:
 > tested macOS Tauri webview.
 
 The successful path extended beyond initialization. Resonance became a Spotify
-Connect device visible to an external client, rendered audible music, displayed
-live metadata, and controlled playback. The primary macOS feasibility risk for
-Spotify provider version `0.0.3` is therefore resolved.
+Connect device visible to an external client, rendered audible music, translated
+Spotify state through its provider-neutral architecture, displayed live metadata
+in the real PlayerBar, and controlled playback through that shared contract. The
+primary macOS feasibility risk for Spotify provider version `0.0.3` is therefore
+resolved, and the first complete provider-to-interface playback slice has been
+demonstrated.
 
 Resonance has sung its first notes.

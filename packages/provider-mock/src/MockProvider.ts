@@ -1,6 +1,7 @@
 import type {
     MusicProvider,
     PlaybackState,
+    PlaybackStateListener,
     ProviderCapabilities,
     RepeatMode,
     SearchResults,
@@ -8,6 +9,13 @@ import type {
 
 import { mockTracks } from './data/mockTracks';
 
+/**
+ * In-memory music provider used for development and testing.
+ *
+ * The provider implements Resonance's complete provider contract without
+ * communicating with an external service. Playback operations update local
+ * state and synchronously notify registered playback-state listeners.
+ */
 export class MockProvider implements MusicProvider {
     readonly id = "mock";
     readonly name = "Mock Provider";
@@ -66,17 +74,17 @@ export class MockProvider implements MusicProvider {
     private positionMs = 0;
     private volume = 1;
 
-    async authenticate(): Promise<void> {
-        // The mock provider does not require any authentication
+    private readonly playbackStateListeners = new Set<PlaybackStateListener>();
+
+    subscribeToPlaybackState(listener: PlaybackStateListener): () => void {
+        this.playbackStateListeners.add(listener);
+
+        return () => {
+            this.playbackStateListeners.delete(listener);
+        };
     }
 
-    async disconnect(): Promise<void> {
-        this.currentTrackIndex = null;
-        this.status = 'idle';
-        this.positionMs = 0;
-    }
-
-    async getPlaybackState(): Promise<PlaybackState> {
+    private createPlaybackState(): PlaybackState {
         if (this.currentTrackIndex === null) {
             return {
                 track: null,
@@ -94,6 +102,29 @@ export class MockProvider implements MusicProvider {
         };
     }
 
+    private emitPlaybackState(): void {
+        const state = this.createPlaybackState();
+
+        for (const listener of this.playbackStateListeners) {
+            listener(state);
+        }
+    }
+
+    async authenticate(): Promise<void> {
+        // The mock provider does not require any authentication
+    }
+
+    async disconnect(): Promise<void> {
+        this.currentTrackIndex = null;
+        this.status = 'idle';
+        this.positionMs = 0;
+        this.emitPlaybackState();
+    }
+
+    async getPlaybackState(): Promise<PlaybackState> {
+        return this.createPlaybackState();
+    }
+
     async playTrack(providerTrackId: string): Promise<void> {
         const index = mockTracks.findIndex(
             (track) => track.providerTrackId === providerTrackId,
@@ -106,6 +137,7 @@ export class MockProvider implements MusicProvider {
         this.currentTrackIndex = index;
         this.positionMs = 0;
         this.status = 'playing';
+        this.emitPlaybackState();
     }
 
     async resume(): Promise<void> {
@@ -114,6 +146,7 @@ export class MockProvider implements MusicProvider {
         }
 
         this.status = 'playing';
+        this.emitPlaybackState();
     }
 
     async pause(): Promise<void> {
@@ -121,6 +154,7 @@ export class MockProvider implements MusicProvider {
             return;
         }
         this.status = 'paused';
+        this.emitPlaybackState();
     }
 
     async seek(positionMs: number): Promise<void> {
@@ -135,6 +169,7 @@ export class MockProvider implements MusicProvider {
         }
 
         this.positionMs = positionMs;
+        this.emitPlaybackState();
     }
 
     async next(): Promise<void> {
@@ -146,6 +181,7 @@ export class MockProvider implements MusicProvider {
             (this.currentTrackIndex + 1) % mockTracks.length;
 
         this.positionMs = 0;
+        this.emitPlaybackState();
     }
 
     async previous(): Promise<void> {
@@ -158,6 +194,7 @@ export class MockProvider implements MusicProvider {
             mockTracks.length;
 
         this.positionMs = 0;
+        this.emitPlaybackState();
     }
 
     async setVolume(volume: number): Promise<void> {
@@ -168,6 +205,7 @@ export class MockProvider implements MusicProvider {
         }
 
         this.volume = volume;
+        this.emitPlaybackState();
     }
 
     async setShuffle(_enabled: boolean): Promise<void> {

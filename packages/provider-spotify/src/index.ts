@@ -15,4 +15,8 @@ export type {
     SpotifyPlaybackFailureKind,
     SpotifyNowPlayingState,
     SpotifyPlaybackStateListener,
-} from './playback/SpotifyPlaybackClient'
+    SpotifyNowPlayingAlbum,
+    SpotifyNowPlayingArtist,
+} from './playback/SpotifyPlaybackClient';
+
+export { SpotifyProvider } from './SpotifyProvider';

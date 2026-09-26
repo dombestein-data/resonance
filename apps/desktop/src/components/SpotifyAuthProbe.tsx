@@ -292,7 +292,7 @@ export function SpotifyAuthProbe() {
                                     <strong>
                                         {nowPlaying.trackName} 
                                         {' - '}
-                                        {nowPlaying.artistNames.join(', ')}
+                                        {nowPlaying.artists.map((artist) => artist.name).join(', ')}
                                     </strong>
                                 ) : (
                                     <span className="spotify-now-playing-empty">

@@ -4,6 +4,10 @@ import { loadSpotifySdk } from "./loadSpotifySdk";
 
 const PLAYER_READY_TIMEOUT_MS = 30_000;
 
+/**
+ * Categories of failure that may occur while loading, connecting, or operating
+ * the Spotify Web Playback SDK.
+ */
 export type SpotifyPlaybackFailureKind =
     | 'sdk'
     | 'initialization'
@@ -11,8 +15,15 @@ export type SpotifyPlaybackFailureKind =
     | 'account'
     | 'playback'
     | 'connection'
-    | 'timeout';
+    | 'timeout'
+    | 'not_ready';
 
+/**
+ * Error produced by the Spotify playback integration.
+ *
+ * {@link kind} identifies the stage or category of failure so consumers can
+ * present appropriate diagnostics without parsing the human-readable message.
+ */
 export class SpotifyPlaybackError extends Error {
     constructor(
         readonly kind: SpotifyPlaybackFailureKind,
@@ -27,9 +38,37 @@ export interface SpotifyPlaybackConnection {
     deviceId: string;
 }
 
+/**
+ * Artist information normalized from a Spotify Web Playback SDK event.
+ */
+export interface SpotifyNowPlayingArtist {
+    uri: string;
+    name: string;
+}
+
+/**
+ * Album information normalized from a Spotify Web Playback SDK event.
+ */
+export interface SpotifyNowPlayingAlbum {
+    uri: string;
+    name: string;
+    artworkUrl?: string;
+}
+
+/**
+ * Provider-specific playback state emitted by SpotifyPlaybackClient before it
+ * is translated into Resonance's canonical PlaybackState.
+ */
 export interface SpotifyNowPlayingState {
+    trackId: string | null;
+    trackUri: string;
+    trackType: string;
     trackName: string;
-    artistNames: string[];
+    playable: boolean;
+
+    artists: SpotifyNowPlayingArtist[];
+    album: SpotifyNowPlayingAlbum;
+
     paused: boolean;
     positionMs: number;
     durationMs: number;
@@ -39,6 +78,17 @@ export type SpotifyPlaybackStateListener = (
     state: SpotifyNowPlayingState | null,
 ) => void;
 
+/**
+ * Thin wrapper around Spotify's Web Playback SDK.
+ *
+ * The client owns one SDK player instance, translates SDK events into a stable
+ * provider-specific state representation, and exposes playback controls without
+ * leaking the global Spotify SDK object to the rest of Resonance.
+ *
+ * This class does not own OAuth authorization or convert Spotify state into
+ * Resonance's canonical models. Those responsibilities belong to
+ * SpotifyAuthClient and SpotifyProvider respectively.
+ */
 export class SpotifyPlaybackClient {
     private player: Spotify.Player | null = null;
 
@@ -62,6 +112,30 @@ export class SpotifyPlaybackClient {
         }
     }
 
+    private getRequiredPlayer(): Spotify.Player {
+        if (!this.player) {
+            throw new SpotifyPlaybackError(
+                'not_ready',
+                'Spotify player has not been initialized',
+            );
+        }
+
+        return this.player;
+    }
+
+    /**
+     * Creates and connects a new Spotify Web Playback SDK player.
+     *
+     * Any existing player owned by this client is disconnected before the new
+     * player is created. The returned promise resolves after Spotify reports the
+     * new device as ready.
+     *
+     * @param accessToken OAuth access token containing the scopes required by the
+     * Web Playback SDK.
+     * @returns Identifying information for the connected Spotify device.
+     * @throws {SpotifyPlaybackError} if the SDK cannot be loaded, initialization
+     * fails, authentication is rejected, or the player does not become ready.
+     */
     async connect(
         accessToken: string,
     ): Promise<SpotifyPlaybackConnection> {
@@ -223,29 +297,37 @@ export class SpotifyPlaybackClient {
                     },
                 );
 
-                player.addListener(
-                    'player_state_changed',
-                    (state) => {
-                        if (!state) {
-                            this.emitState(null);
-                            return;
-                        }
+                player.addListener('player_state_changed', (state) => {
+                    if (!state) {
+                        this.emitState(null);
+                        return;
+                    }
 
-                        const currentTrack = state.track_window.current_track;
+                    const track = state.track_window.current_track;
 
-                        this.emitState({
-                            trackName: currentTrack.name,
+                    this.emitState({
+                        trackId: track.id,
+                        trackUri: track.uri,
+                        trackType: track.type,
+                        trackName: track.name,
+                        playable: track.is_playable,
 
-                            artistNames: currentTrack.artists.map(
-                                (artist) => artist.name,
-                            ),
+                        artists: track.artists.map((artist) => ({
+                            uri: artist.uri,
+                            name: artist.name,
+                        })),
 
-                            paused: state.paused,
-                            positionMs: state.position,
-                            durationMs: state.duration,
-                        });
-                    },
-                );
+                        album: {
+                            uri: track.album.uri,
+                            name: track.album.name,
+                            artworkUrl: track.album.images[0]?.url,
+                        },
+
+                        paused: state.paused,
+                        positionMs: state.position,
+                        durationMs: state.duration,
+                    });
+                });
 
                 void player
                     .connect()
@@ -273,41 +355,61 @@ export class SpotifyPlaybackClient {
         );
     }
 
+    /**
+     * Allows the SDK player to produce audio in environments that enforce
+     * autoplay restrictions.
+     *
+     * This operation must be initiated as part of a user gesture, such as a button
+     * click. Calling it later from an unrelated asynchronous callback may not
+     * satisfy the browser or WebView's autoplay policy.
+     */
     async activateElement(): Promise<void> {
-        if (!this.player) {
-            throw new SpotifyPlaybackError(
-                'connection',
-                'Spotify player is not initialized',
-            );
-        }
+        const player = this.getRequiredPlayer();
 
         /*
          * player.activateElement() must be invoked directly
          * from a user-generated event such as a button click.
          */
-        await this.player.activateElement();
+        await player.activateElement();
+    }
+
+    async seek(positionMs: number): Promise<void> {
+        const player = this.getRequiredPlayer();
+        await player.seek(Math.max(0, positionMs));
+    }
+
+    async nextTrack(): Promise<void> {
+        const player = this.getRequiredPlayer();
+        await player.nextTrack();
+    }
+
+    async previousTrack(): Promise<void> {
+        const player = this.getRequiredPlayer();
+        await player.previousTrack();
+    }
+
+    async getVolume(): Promise<number> {
+        const player = this.getRequiredPlayer();
+        return player.getVolume();
+    }
+
+    async setVolume(volume: number): Promise<void> {
+        const player = this.getRequiredPlayer();
+        const normalizedVolume = Math.max(0, Math.min(1, volume));
+
+        await player.setVolume(normalizedVolume);
     }
 
     async pause(): Promise<void> {
-        if (!this.player) {
-            throw new SpotifyPlaybackError(
-                'connection',
-                'Spotify player is not initialized',
-            );
-        }
+        const player = this.getRequiredPlayer();
 
-        await this.player.pause();
+        await player.pause();
     }
 
     async resume(): Promise<void> {
-        if (!this.player) {
-            throw new SpotifyPlaybackError(
-                'connection',
-                'Spotify player is not intialized',
-            );
-        }
+        const player = this.getRequiredPlayer();
 
-        await this.player.resume();
+        await player.resume();
     }
 
     disconnect(): void {

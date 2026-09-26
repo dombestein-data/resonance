@@ -7,7 +7,7 @@ import {
 } from './components/AppShell';
 import { PlayerBar } from './components/PlayerBar';
 import { PlaybackEnvironmentProbe } from './components/PlaybackEnvironmentProbe';
-import { SpotifyAuthProbe } from './components/SpotifyAuthProbe';
+import { SpotifyProviderSettings } from './components/SpotifyProviderSettings';
 
 function App() {
   const [tracks, setTracks] = useState<Track[]>([]);
@@ -21,27 +21,68 @@ function App() {
 
     if (destination === 'home') {
       setSearchQuery('');
-      void searchTracks('');
-    }
-  }
 
-  async function refreshPlayback() {
-    setPlayback(await provider.getPlaybackState());
+      if (provider.capabilities.search) {
+        void searchTracks('');
+      } else {
+        setTracks([]);
+      }
+    }
   }
 
   useEffect(() => {
-    async function initialize() {
-      await provider.authenticate();
-      await searchTracks('');
-      await refreshPlayback();
+    let disposed = false;
+
+    /*
+     * Avoid displaying data belonging to the previously active provider while
+     * the newly selected provider's initial state is being loaded.
+     */
+    setPlayback(null);
+    setTracks([]);
+
+    /*
+    * Subscribe before requesting the initial state so we do not miss a 
+    * provider event emitted while initialization is running.
+    */
+    const unsubscribe = provider.subscribeToPlaybackState((state) => {
+      if (!disposed) {
+        setPlayback(state);
+      }
+    });
+
+    async function initializeProviderState() {
+      try {
+        if (provider.capabilities.search) {
+          const results = await provider.search('');
+
+          if (!disposed) {
+            setTracks(results.tracks);
+          }
+        }
+
+        const initialPlayback = await provider.getPlaybackState();
+
+        if (!disposed) {
+          setPlayback(initialPlayback);
+        }
+      } catch (error) {
+        console.error(
+          '[resonance]: Failed to initialize active provider',
+          error,
+        );
+      }
     }
 
-    initialize();
-  }, []);
+    void initializeProviderState();
+
+    return () => {
+      disposed = true;
+      unsubscribe();
+    };
+  }, [provider]);
 
   async function playTrack(providerTrackId: string) {
     await provider.playTrack(providerTrackId);
-    await refreshPlayback();
   }
 
   async function togglePlayback() {
@@ -50,8 +91,6 @@ function App() {
     } else {
       await provider.resume();
     }
-
-    await refreshPlayback();
   }
 
   async function searchTracks(query: string) {
@@ -70,22 +109,18 @@ function App() {
 
   async function playPrevious() {
     await provider.previous();
-    await refreshPlayback();
   }
 
   async function playNext() {
     await provider.next();
-    await refreshPlayback();
   }
 
   async function seek(positionMs: number) {
     await provider.seek(positionMs);
-    await refreshPlayback();
   }
 
   async function changeVolume(volume: number) {
     await provider.setVolume(volume);
-    await refreshPlayback();
   }
 
   function renderMainContent() {
@@ -103,7 +138,7 @@ function App() {
           <>
             <h1>Settings</h1>
             <PlaybackEnvironmentProbe />
-            <SpotifyAuthProbe />
+            <SpotifyProviderSettings />
           </>
         );
 

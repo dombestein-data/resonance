@@ -15,16 +15,19 @@ import type { Artwork } from "./Artwork";
 export interface AlbumSummary {
     /**
      * Resonance-wide identifier for this provider-backed album.
-     * 
-     * Combines the originating provider identifier and its provider-local
-     * album ID to create an identifier that is unique across providers.
-     * 
+     *
+     * Uses the form:
+     * `provider:resource-type:provider-local-id`
+     *
+     * Including the resource type prevents identifiers belonging to different
+     * resource categories from colliding within the same provider.
+     *
      * This identifier represents the album as exposed by a specific provider.
      * The same real-world album exposed by different providers therefore has
      * a distinct Resonance ID for each provider.
      * 
-     * @example 'apple-music:269572838'
-     * @example 'spotify:2ANVost0y2y52ema1E9xAZ'
+     * @example 'apple-music:album:269572838'
+     * @example 'spotify:album:2ANVost0y2y52ema1E9xAZ'
      */
     id: string;
 
