@@ -178,6 +178,9 @@ importers:
       '@resonance/provider-mock':
         specifier: workspace:*
         version: link:../../packages/provider-mock
+      '@resonance/provider-spotify':
+        specifier: workspace:*
+        version: link:../../packages/provider-spotify
       '@tabler/icons-react':
         specifier: ^3.47.0
         version: 3.47.0(react@19.3.0)
@@ -220,6 +223,15 @@ importers:
       '@resonance/core':
         specifier: workspace:*
         version: link:../core
+
+  packages/provider-spotify:
+    dependencies:
+      '@resonance/core':
+        specifier: workspace:*
+        version: link:../core
+      '@tauri-apps/api':
+        specifier: ^2
+        version: 2.11.1
 
 packages:
 

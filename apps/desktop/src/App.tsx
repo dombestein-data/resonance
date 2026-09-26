@@ -7,6 +7,7 @@ import {
 } from './components/AppShell';
 import { PlayerBar } from './components/PlayerBar';
 import { PlaybackEnvironmentProbe } from './components/PlaybackEnvironmentProbe';
+import { SpotifyAuthProbe } from './components/SpotifyAuthProbe';
 
 function App() {
   const [tracks, setTracks] = useState<Track[]>([]);
@@ -102,6 +103,7 @@ function App() {
           <>
             <h1>Settings</h1>
             <PlaybackEnvironmentProbe />
+            <SpotifyAuthProbe />
           </>
         );
 
